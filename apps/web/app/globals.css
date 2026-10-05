@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+@layer base {
+  html { @apply bg-paper text-ink antialiased; }
+  h1, h2, h3 { @apply font-serif tracking-tight; }
+  ::selection { @apply bg-brand-100; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-brand; }
+}
+@layer components {
+  .card { @apply rounded-lg border border-ink-100 bg-white shadow-card; }
+  .label { @apply text-[11px] font-semibold uppercase tracking-wider text-ink-400; }
+  .hl { @apply rounded-sm bg-saffron-100 px-0.5 text-ink; }
+}

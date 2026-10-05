@@ -1,0 +1,76 @@
+{
+  "key": "land_record_digitization",
+  "name": "Land-record digitization expansion (transparent normalized-index model)",
+  "version": "1.0.0",
+  "family": "normalized_index",
+  "status": "active",
+  "description": "Explores how expanding digitization coverage, moderated by implementation capacity and data quality, changes indexed administrative workload and dispute pressure. Decision-support prototype, not a prediction engine.",
+  "methodology": "Delivered coverage e = c0 + (c1 - c0) * k. Effective benefit b = ((e - c0) / 100) * q. Each output index is the baseline reduced proportionally to b by a documented coefficient. The composite impact index is a fixed-weight sum of normalized indicators (weights sum to 1). All relationships are linear and inspectable; there is no learned component.",
+  "is_demo_calibration": true,
+  "parameters": [
+    {"key": "current_coverage", "label": "Current digitization coverage", "unit": "%", "min": 0, "max": 100, "default": 62, "step": 1,
+     "description": "Share of land records currently digitized. Defaults to the selected region's latest observation.", "baseline_indicator": "digitization_coverage"},
+    {"key": "target_coverage", "label": "Target digitization coverage", "unit": "%", "min": 0, "max": 100, "default": 80, "step": 1,
+     "description": "Coverage the programme aims to reach. Must be >= current coverage and within 60 points of it (calibrated range)."},
+    {"key": "implementation_capacity", "label": "Implementation capacity", "unit": "0.1-1.0", "min": 0.1, "max": 1.0, "default": 0.8, "step": 0.05,
+     "description": "Fraction of the planned coverage change actually delivered (trained staff, equipment, procedures)."},
+    {"key": "data_quality", "label": "Data quality factor", "unit": "0.5-1.0", "min": 0.5, "max": 1.0, "default": 0.85, "step": 0.05,
+     "description": "Share of digitized records that are accurate and reconciled with spatial records; scales the benefit of new coverage."},
+    {"key": "baseline_processing_pressure", "label": "Baseline processing pressure", "unit": "index (100 = demo mean)", "min": 50, "max": 200, "default": 100, "step": 1,
+     "description": "Indexed mutation processing time relative to the demo all-district mean.", "baseline_indicator": "mutation_processing_days"},
+    {"key": "baseline_dispute_pressure", "label": "Baseline dispute pressure", "unit": "index (100 = demo reference)", "min": 50, "max": 200, "default": 100, "step": 1,
+     "description": "Indexed pending land-dispute pressure.", "baseline_indicator": "dispute_pressure_index"}
+  ],
+  "coefficients": {
+    "alpha_processing": 0.6,
+    "alpha_workload": 0.9,
+    "alpha_dispute": 0.5,
+    "transition_burden": 25.0,
+    "w_coverage": 0.4,
+    "w_workload": 0.3,
+    "w_dispute": 0.3,
+    "index_ref_max": 200,
+    "max_expansion_points": 60
+  },
+  "coefficient_provenance": {
+    "alpha_processing": "SYNTHETIC DEMO CALIBRATION. Illustrative: a fully realized benefit (b=1) would cut processing pressure by 60%. No empirical source.",
+    "alpha_workload": "SYNTHETIC DEMO CALIBRATION. Chosen so the demo example (62% to 80% at full capacity and quality) yields roughly a 16% workload reduction. Requires domain-expert calibration.",
+    "alpha_dispute": "SYNTHETIC DEMO CALIBRATION. Deliberately conservative: qualitative evidence in the demo corpus is mixed on dispute effects (see DEMO-001, DEMO-004).",
+    "transition_burden": "SYNTHETIC DEMO CALIBRATION. Extra workload index points per unit of undelivered capacity during rollout; motivated qualitatively by the transition-burden discussion in the demo capacity report.",
+    "w_coverage": "Analyst-chosen weight (illustrative).",
+    "w_workload": "Analyst-chosen weight (illustrative).",
+    "w_dispute": "Analyst-chosen weight (illustrative).",
+    "index_ref_max": "Normalization ceiling: index values are clamped to [0, 200] before scoring.",
+    "max_expansion_points": "Calibrated range limit: results beyond a 60-point expansion are outside the model's supported range."
+  },
+  "outputs": [
+    {"key": "coverage_gap", "label": "Coverage gap", "unit": "points", "higher_is_better": false},
+    {"key": "processing_pressure", "label": "Processing pressure index", "unit": "index", "higher_is_better": false},
+    {"key": "administrative_workload_index", "label": "Administrative workload index", "unit": "index", "higher_is_better": false},
+    {"key": "dispute_pressure_index", "label": "Dispute-pressure index", "unit": "index", "higher_is_better": false},
+    {"key": "composite_impact_index", "label": "Composite impact index", "unit": "0-100 (higher = better)", "higher_is_better": true}
+  ],
+  "equations": [
+    {"output": "delivered coverage e", "formula": "e = c0 + (c1 - c0) * k"},
+    {"output": "effective benefit b", "formula": "b = ((e - c0) / 100) * q"},
+    {"output": "coverage_gap", "formula": "gap = 100 - e"},
+    {"output": "processing_pressure", "formula": "P = p0 * (1 - alpha_processing * b)"},
+    {"output": "administrative_workload_index", "formula": "W = p0 * (1 - alpha_workload * b) + transition_burden * (1 - k) * (c1 - c0) / 100"},
+    {"output": "dispute_pressure_index", "formula": "D = d0 * (1 - alpha_dispute * b)"},
+    {"output": "composite_impact_index", "formula": "I = 100 * (w_coverage * e/100 + w_workload * (1 - clamp(W/200)) + w_dispute * (1 - clamp(D/200)))"}
+  ],
+  "assumptions": [
+    "Benefits scale linearly with delivered coverage and are discounted by data quality.",
+    "Coverage expansion does not change dispute filing behaviour in the short run.",
+    "Baselines are taken from the selected region's latest observation (demo data unless replaced).",
+    "Transition burden applies only while capacity is below 1.0.",
+    "Other concurrent reforms (resurvey, grievance redressal, court digitization) are held constant."
+  ],
+  "limitations": [
+    "This is a scenario estimate, not a guaranteed real-world outcome.",
+    "Coefficients are a synthetic demo calibration; they are not causal estimates from evaluated programmes.",
+    "The model does not prove that digitization reduces disputes; evidence on that is mixed and largely associational.",
+    "No uncertainty interval is estimated; the sensitivity view shows assumption-dependence, not statistical error.",
+    "Not validated against observed outcomes in any state."
+  ]
+}

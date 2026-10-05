@@ -1,0 +1,41 @@
+# NOTE: authored but not executed in the dev sandbox (no Docker there). First `docker compose up --build` is the validation.
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment: { POSTGRES_USER: sih, POSTGRES_PASSWORD: sih, POSTGRES_DB: sih }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U sih"], interval: 5s, retries: 10 }
+    ports: ["5432:5432"]
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+psycopg://sih:sih@postgres:5432/sih
+      REDIS_URL: redis://redis:6379/0
+      JOB_BACKEND: celery
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      OBJECT_STORAGE_URL: /repo/data/documents/_store
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_started } }
+    volumes: [store:/repo/data/documents/_store]
+    ports: ["8000:8000"]
+  worker:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    command: ["celery", "-A", "app.worker", "worker", "-l", "info"]
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+psycopg://sih:sih@postgres:5432/sih
+      REDIS_URL: redis://redis:6379/0
+      JOB_BACKEND: celery
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      OBJECT_STORAGE_URL: /repo/data/documents/_store
+    depends_on: [api]
+    volumes: [store:/repo/data/documents/_store]
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile, args: { API_INTERNAL_URL: "http://api:8000" } }
+    environment: { API_INTERNAL_URL: "http://api:8000" }
+    depends_on: [api]
+    ports: ["3000:3000"]
+volumes: { pgdata: {}, store: {} }
